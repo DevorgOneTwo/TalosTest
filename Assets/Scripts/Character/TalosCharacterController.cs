@@ -18,7 +18,7 @@ namespace TalosTest
     public class TalosCharacterController : MonoBehaviour, ICharacterController
     {
         public KinematicCharacterMotor Motor;
-        public Interactor Interactor;
+        public PlayerInteraction Interactor;
 
         [Header("Stable Movement")]
         public float MaxStableMoveSpeed = 10f;

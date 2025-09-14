@@ -12,9 +12,8 @@ namespace TalosTest
         public LayerMask InteractableLayer;
         public float PlaceDistance;
 
-        [CanBeNull] public MovableTool HeldTool { get; private set; }
-
-        [CanBeNull]
+        public MovableTool HeldTool { get; private set; }
+        
         public IInteractable GetLookingAt(LayerMask layerMask, float maxDistance)
         {
             if (Physics.Raycast(CameraTransform.position, CameraTransform.forward, out var hit, maxDistance, layerMask))
@@ -25,7 +24,7 @@ namespace TalosTest
             return null;
         }
 
-        public void PickUpTool([CanBeNull] MovableTool tool)
+        public void PickUpTool(MovableTool tool)
         {
             HeldTool = tool;
 
@@ -64,6 +63,11 @@ namespace TalosTest
             {
                 return HeldTool.GetInteractWithToolInHandsText(this);
             }
+        }
+
+        public void AddConnectionToHeldTool(IInteractable interactable)
+        {
+            
         }
     }
 }

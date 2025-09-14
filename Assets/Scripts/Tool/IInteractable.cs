@@ -1,8 +1,10 @@
-﻿namespace TalosTest
+﻿using UnityEngine;
+
+namespace TalosTest
 {
     public interface IInteractable
     {
-        string GetInteractText(Interactor interactor);
-        void Interact(Interactor interactor);
+        public string GetInteractText(Interactor interactor);
+        public void Interact(Interactor interactor);
     }
 }
