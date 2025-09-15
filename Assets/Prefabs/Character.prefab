@@ -213,7 +213,7 @@ GameObject:
   - component: {fileID: 5433006364903899566}
   - component: {fileID: 6441770743174978124}
   - component: {fileID: 5617792909415371545}
-  - component: {fileID: 5591250126895720452}
+  - component: {fileID: 7026548051387460811}
   m_Layer: 6
   m_Name: Character
   m_TagString: Untagged
@@ -316,7 +316,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Motor: {fileID: 5433006364903899566}
-  Interactor: {fileID: 5591250126895720452}
+  Interactor: {fileID: 0}
   MaxStableMoveSpeed: 10
   StableMovementSharpness: 15
   OrientationSharpness: 10
@@ -346,7 +346,7 @@ MonoBehaviour:
   OrbitCamera: {fileID: 5402932056861605286}
   CameraFollowPoint: {fileID: 5593221224000310828}
   Character: {fileID: 6441770743174978124}
---- !u!114 &5591250126895720452
+--- !u!114 &7026548051387460811
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -355,16 +355,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 5764106601475863796}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4814d2a2d0d7426a8fe574132495a2d7, type: 3}
+  m_Script: {fileID: 11500000, guid: 664d1ac9d1ef4fb4983288335757f73f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  CameraTransform: {fileID: 2987947749940792648}
-  FirstPersonHandRoot: {fileID: 2940416650774007061}
-  InteractDistance: 2
-  InteractableLayer:
+  holdPoint: {fileID: 2940416650774007061}
+  interactDistance: 3
+  interactMask:
     serializedVersion: 2
     m_Bits: 384
-  PlaceDistance: 2
 --- !u!1 &5850207924846738030
 GameObject:
   m_ObjectHideFlags: 0

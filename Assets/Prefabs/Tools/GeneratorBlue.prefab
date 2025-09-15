@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7364543020139696123}
   - component: {fileID: 214629324798750845}
-  - component: {fileID: 5785239063692233138}
+  - component: {fileID: 1756736674560807691}
   m_Layer: 8
   m_Name: GeneratorBlue
   m_TagString: Untagged
@@ -56,7 +56,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0.5, z: 0}
---- !u!114 &5785239063692233138
+--- !u!114 &1756736674560807691
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -65,13 +65,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 537624801346779684}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 14993fc8ebaf4cd9abdf8b9b3b747919, type: 3}
+  m_Script: {fileID: 11500000, guid: 7824e8f5933141fe9ec0a9c4e0f12142, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _laserTarget: {fileID: 1187413896636556756}
-  nodeType: 0
-  laserType: 2
-  connections: []
+  _connectionTargetPosition: {fileID: 1187413896636556756}
+  _energyType: 2
 --- !u!1 &1939344930658443838
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using LaserSystem;
+using UnityEngine;
 
 public class PlayerInteraction : MonoBehaviour
 {
@@ -8,11 +9,6 @@ public class PlayerInteraction : MonoBehaviour
     public LayerMask interactMask; // маска для Raycast взаимодействия
 
     private Connector heldConnector;
-
-    // public void HandleInteractInput()
-    // {
-    //     
-    // }
 
     void Update()
     {
@@ -48,11 +44,11 @@ public class PlayerInteraction : MonoBehaviour
 
         if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactMask))
         {
-            var node = hit.collider.GetComponentInParent<LaserNode>();
+            var node = hit.collider.GetComponentInParent<ConnectionNode>();
             // если смотрим на какую-то ноду (и это не сам удерживаемый объект) — переключаем подключение
             if (node != null && (heldConnector == null || node.gameObject != heldConnector.gameObject))
             {
-                heldConnector.ToggleConnection(node);
+                heldConnector.AddConnection(node);
                 return;
             }
         }

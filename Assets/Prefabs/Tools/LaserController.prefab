@@ -9,8 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3135791753270289901}
-  - component: {fileID: 5845365873557114653}
-  - component: {fileID: 513465698095180250}
+  - component: {fileID: 8064519581938775761}
   m_Layer: 0
   m_Name: LaserController
   m_TagString: Untagged
@@ -33,7 +32,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5845365873557114653
+--- !u!114 &8064519581938775761
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -42,36 +41,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 9149299265486246726}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: afda01491a0748978a1869638b7a0b31, type: 3}
+  m_Script: {fileID: 11500000, guid: 06d76d10702f497aa49a561dbb399ea9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserPathPrefab: {fileID: 4317742993918974912, guid: 23039dccf6b5ebe429e0ed5603f53bd5,
+  _simplePathPrefab: {fileID: 6769164827980403237, guid: 23039dccf6b5ebe429e0ed5603f53bd5,
     type: 3}
-  laserBeamRedPrefab: {fileID: 1818483698145146, guid: 9a47276d95adf01468d0bd2a94b1e373,
-    type: 3}
-  laserBeamBluePrefab: {fileID: 1818483698145146, guid: 84819b72fe24dd5428797bb5f6be1535,
-    type: 3}
-  laserSphereRedPrefab: {fileID: 1413193383999178408, guid: 67777a599d601e54e81bf4571eaccf78,
-    type: 3}
-  laserSphereBluePrefab: {fileID: 3455788590201315469, guid: a6d2bf9341c46cc48bc5750f902757da,
-    type: 3}
-  laserHitSparksPrefab: {fileID: 5949683234116493305, guid: 2f7b8a21a0aae5f45b7c574ad76ab22c,
-    type: 3}
-  segmentCollisionThreshold: 0.25
-  blockingLayers:
-    serializedVersion: 2
-    m_Bits: 64
-  playerTransform: {fileID: 0}
-  maxDepth: 64
---- !u!114 &513465698095180250
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9149299265486246726}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6bea49355cb2404a96002ec192119eee, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
