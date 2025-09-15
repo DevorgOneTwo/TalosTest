@@ -1,29 +1,30 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Менеджер графа: собирает ноды, распространяет лучи от генераторов через коннекторы,
+/// учитывает попадания в геометрию/игрока и пересечения между лучами (по типу).
+/// </summary>
 public class LaserGraphManager : MonoBehaviour
 {
-    [Header("References")]
-    public GameObject laserPathPrefab; // dashed line prefab (optional)
+    [Header("FX Prefabs")]
+    public GameObject laserPathPrefab;
     public GameObject laserBeamRedPrefab;
     public GameObject laserBeamBluePrefab;
-    public GameObject laserBeamGreenPrefab; // optional
+    public GameObject laserBeamGreenPrefab;
     public GameObject laserSphereRedPrefab;
     public GameObject laserSphereBluePrefab;
     public GameObject laserSphereGreenPrefab;
     public GameObject laserHitSparksPrefab;
 
     [Header("Settings")]
-    public float segmentCollisionThreshold = 0.25f; // distance to consider beams intersecting
-    public LayerMask blockingLayers; // level geometry + player layer
-    public LayerMask playerLayerMask; // mask to detect player-specific hits (optional)
-    public Transform playerTransform; // optional reference to player
-    public int maxDepth = 64; // safety
+    public float segmentCollisionThreshold = 0.25f;
+    public LayerMask blockingLayers;     // геометрия + игрок
+    public LayerMask playerLayerMask;    // отдельная маска для игрока (если задана)
+    public Transform playerTransform;    // опционально
+    public int maxDepth = 64;
 
     private List<Generator> generators = new List<Generator>();
-    private List<Connector> connectors = new List<Connector>();
-    private List<Receiver> receivers = new List<Receiver>();
-
     private LaserRenderer rendererComponent;
 
     private void Awake()
@@ -41,12 +42,10 @@ public class LaserGraphManager : MonoBehaviour
     [ContextMenu("RefreshNodeLists")]
     public void RefreshNodeLists()
     {
-        generators.Clear(); connectors.Clear(); receivers.Clear();
+        generators.Clear();
         foreach (var n in FindObjectsOfType<LaserNode>())
         {
             if (n is Generator g) generators.Add(g);
-            else if (n is Connector c) connectors.Add(c);
-            else if (n is Receiver r) receivers.Add(r);
         }
     }
 
@@ -61,65 +60,90 @@ public class LaserGraphManager : MonoBehaviour
 
         var activeBeams = new List<LaserBeam>();
 
+        // 1) собрать все сегменты (лучи) от каждого генератора
         foreach (var gen in generators)
         {
-            var type = gen.laserType;
-            var beamsFromGen = PropagateFromGenerator(gen, type);
-            activeBeams.AddRange(beamsFromGen);
+            var beams = PropagateFromGenerator(gen, gen.laserType);
+            activeBeams.AddRange(beams);
         }
 
-        // Detect beam-beam intersections (segment-segment closest points)
-        for (int i = 0; i < activeBeams.Count; i++)
+        // 2) попарно найти пересечения между лучами разных типов
+        int n = activeBeams.Count;
+        for (int i = 0; i < n; i++)
         {
-            for (int j = i + 1; j < activeBeams.Count; j++)
+            for (int j = i + 1; j < n; j++)
             {
                 var a = activeBeams[i];
                 var b = activeBeams[j];
 
-                // skip same color
-                if (a.laserType == b.laserType) continue;
+                if (a.laserType == b.laserType) continue; // одинаковые типы не создают spark
 
-                // skip beams that were blocked by player — они не влияют на другие
-                if (a.blockedByPlayer || b.blockedByPlayer) continue;
+                // используем текущие ограниченные концы (maxReachDistance)
+                Vector3 aEndEffective = a.GetPointAtDistance(a.maxReachDistance);
+                Vector3 bEndEffective = b.GetPointAtDistance(b.maxReachDistance);
 
-                if (SegmentUtility.SegmentSegmentClosestPoints(a.start, a.end, b.start, b.end, out Vector3 pa, out Vector3 pb))
+                if (SegmentUtility.SegmentSegmentClosestPoints(a.start, aEndEffective, b.start, bEndEffective, out Vector3 pa, out Vector3 pb))
                 {
-                    var dist = Vector3.Distance(pa, pb);
-                    if (dist <= segmentCollisionThreshold)
+                    float distBetween = Vector3.Distance(pa, pb);
+                    if (distBetween <= segmentCollisionThreshold)
                     {
-                        var collision = (pa + pb) * 0.5f;
+                        float distAlongA = Vector3.Distance(a.start, pa);
+                        float distAlongB = Vector3.Distance(b.start, pb);
 
-                        a.end = collision;
-                        b.end = collision;
+                        // Обрабатываем столкновение, только если точки находятся **внутри** доступных отрезков
+                        if (distAlongA <= a.maxReachDistance + 1e-5f && distAlongB <= b.maxReachDistance + 1e-5f)
+                        {
+                            // средняя точка между ближайшими точками
+                            Vector3 collisionPoint = (pa + pb) * 0.5f;
 
-                        a.hitSpark = true;
-                        b.hitSpark = true;
-                        a.hitPoint = collision;
-                        b.hitPoint = collision;
+                            a.RegisterIntersection(collisionPoint, distAlongA);
+                            b.RegisterIntersection(collisionPoint, distAlongB);
 
-                        // since LaserBeam is a class, we updated fields directly
+                            // сохраняем конкретную точку попадания (позже рендерер её использует)
+                            a.geometryHitPoint = collisionPoint;
+                            b.geometryHitPoint = collisionPoint;
+                        }
                     }
                 }
             }
         }
 
-        // Render beams
+        // 3) финализация: учесть геометрию/игрока (если попали) и отрисовать
         foreach (var beam in activeBeams)
         {
+            // если геометрия была ближе или равна текущему maxReach => это реальный хит
+            if (beam.geometryHitDistance < float.PositiveInfinity && beam.geometryHitDistance <= beam.maxReachDistance + 1e-5f)
+            {
+                beam.hitSpark = true;
+                beam.end = beam.GetPointAtDistance(beam.geometryHitDistance);
+            }
+
+            // если игрок попал в доступный отрезок — он блокирует
+            if (beam.playerHitDistance < float.PositiveInfinity && beam.playerHitDistance <= beam.maxReachDistance + 1e-5f)
+            {
+                beam.blockedByPlayer = true;
+                beam.hitSpark = true;
+                beam.end = beam.GetPointAtDistance(beam.playerHitDistance);
+            }
+
+            // если всё ещё не установлено — поставить конец по текущему ограничению
+            beam.end = beam.GetClampedEnd();
+
+            // отрисовать
             rendererComponent.RenderBeam(beam);
         }
     }
 
+    // Построение сегментов от генератора по графу нод
     private List<LaserBeam> PropagateFromGenerator(Generator gen, LaserColorType type)
     {
         var result = new List<LaserBeam>();
         var stack = new Stack<PathState>();
 
-        // initial push: all adjacent nodes
         foreach (var n in gen.connections)
         {
-            if (n is Connector c && c.IsHeldByPlayer) continue; // ignore held connector
-            stack.Push(new PathState { current = n, prev = gen, depth = 1, path = new List<LaserNode> { gen, n } });
+            if (n is Connector c && c.IsHeldByPlayer) continue;
+            stack.Push(new PathState { prev = gen, current = n, depth = 1, path = new List<LaserNode> { gen, n } });
         }
 
         while (stack.Count > 0)
@@ -129,35 +153,49 @@ public class LaserGraphManager : MonoBehaviour
 
             Vector3 from = st.prev.Position;
             Vector3 to = st.current.Position;
+            Vector3 dir = (to - from).normalized;
+            float fullDist = Vector3.Distance(from, to);
 
-            RaycastHit hit;
-            bool blocked = Physics.Raycast(from, (to - from).normalized, out hit, Vector3.Distance(from, to), blockingLayers);
+            // создать объект луча между st.prev и st.current
+            var beam = new LaserBeam(st.prev, st.current, type);
+            beam.start = from;
+            beam.end = to;
+            beam.dir = dir;
+            beam.fullLength = fullDist;
+            beam.maxReachDistance = fullDist; // по умолчанию
 
-            if (blocked)
+            // проверяем коллизию с геометрией/игроком на сегменте
+            if (Physics.Raycast(from, dir, out RaycastHit hit, fullDist, blockingLayers))
             {
-                var beam = new LaserBeam(st.prev, st.current, type);
-                beam.start = from;
-                beam.end = hit.point;
-
-                // determine whether hit was the player (so this beam should not affect others)
+                // определить — игрок ли это
                 bool hitPlayer = false;
                 if (playerTransform != null && hit.collider != null && hit.collider.transform.IsChildOf(playerTransform)) hitPlayer = true;
                 if (hit.collider != null && hit.collider.CompareTag("Player")) hitPlayer = true;
-                if (hit.collider != null && ((1 << hit.collider.gameObject.layer) & playerLayerMask) != 0) hitPlayer = true;
+                if (playerLayerMask != (LayerMask)0 && hit.collider != null)
+                {
+                    int layerMaskOfHit = (1 << hit.collider.gameObject.layer);
+                    if ((layerMaskOfHit & playerLayerMask) != 0) hitPlayer = true;
+                }
 
-                beam.blockedByPlayer = hitPlayer;
-                beam.hitSpark = true;
-                beam.hitPoint = hit.point;
-
-                result.Add(beam);
-                continue; // stop path here
+                if (hitPlayer)
+                {
+                    beam.RegisterPlayerHit(hit.point, hit.distance);
+                    // добавляем и не продолжаем путь дальше за игроком
+                    result.Add(beam);
+                    continue;
+                }
+                else
+                {
+                    beam.RegisterGeometryHit(hit.point, hit.distance);
+                    result.Add(beam);
+                    continue;
+                }
             }
 
-            // not blocked — full segment
-            var seg = new LaserBeam(st.prev, st.current, type);
-            result.Add(seg);
+            // не заблокировано — полный сегмент
+            result.Add(beam);
 
-            // if we reached receiver — stop and set state
+            // если получили приёмник — не идём дальше
             if (st.current is Receiver rec)
             {
                 bool matches = (type == rec.requiredType);
@@ -165,21 +203,17 @@ public class LaserGraphManager : MonoBehaviour
                 continue;
             }
 
-            // if connector — continue to its neighbors
+            // если это коннектор — продолжить по его подключениям
             if (st.current is Connector conn)
             {
                 foreach (var next in conn.connections)
                 {
                     if (next == st.prev) continue;
                     if (next is Connector c2 && c2.IsHeldByPlayer) continue;
+                    if (st.path.Contains(next)) continue; // предотвращаем простые циклы
 
-                    // prevent simple cycles: don't revisit nodes already in path
-                    if (st.path.Contains(next))
-                        continue;
-
-                    var newPath = new List<LaserNode>(st.path);
-                    newPath.Add(next);
-                    stack.Push(new PathState { current = next, prev = st.current, depth = st.depth + 1, path = newPath });
+                    var newPath = new List<LaserNode>(st.path) { next };
+                    stack.Push(new PathState { prev = st.current, current = next, depth = st.depth + 1, path = newPath });
                 }
             }
         }
@@ -189,8 +223,8 @@ public class LaserGraphManager : MonoBehaviour
 
     private struct PathState
     {
-        public LaserNode current;
         public LaserNode prev;
+        public LaserNode current;
         public int depth;
         public List<LaserNode> path;
     }
