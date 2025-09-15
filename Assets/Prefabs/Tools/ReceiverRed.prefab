@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7364543020139696123}
   - component: {fileID: 4573938061527189156}
-  - component: {fileID: 7249738139539878770}
+  - component: {fileID: 4396750695961919253}
   m_Layer: 8
   m_Name: ReceiverRed
   m_TagString: Untagged
@@ -56,7 +56,7 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 0.2, z: 1}
   m_Center: {x: 0, y: 0.1, z: 0}
---- !u!114 &7249738139539878770
+--- !u!114 &4396750695961919253
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -65,9 +65,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 537624801346779684}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fdf31f7d253042fabc83936f267019bc, type: 3}
+  m_Script: {fileID: 11500000, guid: 7d051a948d824a41a3e19167493c8c94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _laserTarget: {fileID: 2475784369411655951}
+  nodeType: 2
+  laserType: 1
+  connections: []
+  requiredType: 1
 --- !u!1 &5337618328505620684
 GameObject:
   m_ObjectHideFlags: 0

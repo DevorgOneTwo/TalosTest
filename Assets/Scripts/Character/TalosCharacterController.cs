@@ -88,7 +88,7 @@ namespace TalosTest
 
             if (inputs.Interact)
             {
-                Interactor.HandleInteractInput();
+                //Interactor.HandleInteractInput();
             }
         }
 

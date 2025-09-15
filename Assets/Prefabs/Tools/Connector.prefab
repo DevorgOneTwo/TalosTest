@@ -95,7 +95,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6048001264409584888}
-  - component: {fileID: -1301248448852163922}
+  - component: {fileID: 1958892210899283723}
   m_Layer: 7
   m_Name: Connector
   m_TagString: Untagged
@@ -119,7 +119,7 @@ Transform:
   - {fileID: 7368554640905143396}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &-1301248448852163922
+--- !u!114 &1958892210899283723
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -128,20 +128,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 6105463892388714484}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 01d4a592cc8746d29a7c3f3ab848ca7c, type: 3}
+  m_Script: {fileID: 11500000, guid: e5119d69048543a9abe2c76497d48246, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  connectionPoint: {fileID: 1384316401214928093}
+  _laserTarget: {fileID: 1384316401214928093}
+  nodeType: 1
+  laserType: 0
+  connections: []
   PlacedTool: {fileID: 7554413843773525573}
   PlacedToolCollider: {fileID: 7179449042059780866}
-  FirstPersonVisualsPrefab: {fileID: 7032066351190124930, guid: 1a41e01797164d54ca5326e74883c811,
-    type: 3}
   PlaceObstaclesMask:
     serializedVersion: 2
     m_Bits: 1
-  OnConnectionsChanged:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!1 &6507522071130911514
 GameObject:
   m_ObjectHideFlags: 0
