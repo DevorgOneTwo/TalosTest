@@ -23,7 +23,7 @@ namespace LaserSystem
         public readonly bool IsFirstChainConnection;
         public readonly ConnectionNode FirstNode;
         public readonly ConnectionNode SecondNode;
-        public int Depth;
+        public int Depth = -1;
         
         public Connection(ConnectionNode firstNode, ConnectionNode secondNode)
         {

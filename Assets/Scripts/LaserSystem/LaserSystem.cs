@@ -33,11 +33,6 @@ namespace LaserSystem
             _allConnectionNodes.Add(connectionNode);
         }
 
-        private void CalculatePaths()
-        {
-            
-        }
-
         private void Update()
         {
             CalculateConnections();
@@ -47,6 +42,7 @@ namespace LaserSystem
         {
             ClearVfx();
             SelectActiveConnections();
+            
             _connections.Clear();
             _connections = FindAllConnections();
             DrawConnectionsDebug(_connections);
@@ -119,6 +115,25 @@ namespace LaserSystem
         private void SetEnergyTypes(List<Connection> connections)
         {
             //выстроить цепочку коннекшенов
+            //найти генераторы
+            //от генераторов начать проходить по нодам
+            //если ресивер, то не идти дальше
+
+            var depthIndex = 0;
+            var generatorConnections = new List<Connection>();
+            for (var i = 0; i < connections.Count; i++)
+            {
+                var connection = connections[i];
+                if (connection.IsFirstChainConnection)
+                {
+                    generatorConnections.Add(connection);
+                }
+            }
+            
+            for (var i = 0; i < generatorConnections.Count; i++)
+            {
+                
+            }
         }
 
         private bool HasConnectionWithNodes(List<Connection> connections, ConnectionNode firstNode, ConnectionNode secondNode)
