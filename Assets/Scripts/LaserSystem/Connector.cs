@@ -13,8 +13,8 @@ namespace LaserSystem
 
         public override EnergyType EnergyType { get; set; }
         public override NodeType NodeType => NodeType.Connector;
-        
-        public bool IsHeldByPlayer { get; private set; }
+
+        private bool IsHeldByPlayer { get; set; }
 
         protected override void Start()
         {

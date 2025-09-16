@@ -358,9 +358,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 664d1ac9d1ef4fb4983288335757f73f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  holdPoint: {fileID: 2940416650774007061}
-  interactDistance: 3
-  interactMask:
+  _holdPoint: {fileID: 2940416650774007061}
+  _interactDistance: 3
+  _interactMask:
     serializedVersion: 2
     m_Bits: 384
 --- !u!1 &5850207924846738030
@@ -580,6 +580,26 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Layer
       value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2417310517920258159, guid: 78b137165bdf7df4c8572ce7fec3cb7b,
+        type: 3}
+      propertyPath: m_BackGroundColor.a
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2417310517920258159, guid: 78b137165bdf7df4c8572ce7fec3cb7b,
+        type: 3}
+      propertyPath: m_BackGroundColor.b
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2417310517920258159, guid: 78b137165bdf7df4c8572ce7fec3cb7b,
+        type: 3}
+      propertyPath: m_BackGroundColor.g
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2417310517920258159, guid: 78b137165bdf7df4c8572ce7fec3cb7b,
+        type: 3}
+      propertyPath: m_BackGroundColor.r
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4747210682169596129, guid: 78b137165bdf7df4c8572ce7fec3cb7b,
         type: 3}

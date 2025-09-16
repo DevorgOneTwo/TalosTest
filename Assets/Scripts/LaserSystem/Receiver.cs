@@ -1,5 +1,4 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LaserSystem
 {
@@ -8,16 +7,9 @@ namespace LaserSystem
         [SerializeField]
         private EnergyType _energyType;
         [SerializeField]
-        private bool _isActive;
-        [SerializeField]
         private GameObject _activeEffect;
 
-        public override bool IsActive
-        {
-            get => _isActive;
-            set => _isActive = value;
-        }
-        
+        public override bool HasEnergy { get; set; }
         public override EnergyType EnergyType { get; set; }
         public override NodeType NodeType => NodeType.Receiver;
 
@@ -30,7 +22,7 @@ namespace LaserSystem
         {
             if (_activeEffect != null)
             {
-                _activeEffect.SetActive(IsActive && EnergyType == _energyType);
+                _activeEffect.SetActive(HasEnergy && EnergyType == _energyType);
             }
         }
     }

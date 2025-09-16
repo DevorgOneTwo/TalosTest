@@ -13,6 +13,12 @@ namespace LaserSystem
         private LineRenderer _redConnectionLine;
         [SerializeField]
         private LineRenderer _blueConnectionLine;
+        
+        [Space(10)]
+        [SerializeField]
+        private List<Receiver> _receivers;
+        [SerializeField] 
+        private GameObject _wall;
 
         [SerializeField] 
         private LayerMask _collisionMask;
@@ -45,6 +51,23 @@ namespace LaserSystem
         private void Update()
         {
             CalculateConnections();
+            UpdateWall();
+        }
+
+        private void UpdateWall()
+        {
+            var isOpenWall = true;
+            for (var i = 0; i < _receivers.Count; i++)
+            {
+                var receiver = _receivers[i];
+                if (!receiver.HasEnergy)
+                {
+                    isOpenWall = false;
+                    break;
+                }
+            }
+            
+            _wall.SetActive(!isOpenWall);
         }
 
         private void CalculateConnections()
@@ -86,9 +109,10 @@ namespace LaserSystem
                 {
                     connectionNode.EnergyType = EnergyType.None;
                 }
+                
                 if (connectionNode.NodeType == NodeType.Receiver)
                 {
-                    connectionNode.IsActive = false;
+                    connectionNode.HasEnergy = false;
                 }
             }
         }
@@ -163,8 +187,7 @@ namespace LaserSystem
             {
                 CalculateDistances(generator);
             }
-
-            // Обработка энергии для коннекторов
+            
             foreach (var node in _activeConnectionsNodes)
             {
                 if (node.NodeType == NodeType.Generator) 
@@ -176,7 +199,7 @@ namespace LaserSystem
                     continue;
                 }
 
-                int minDepth = node.Depths.Values.Min();
+                var minDepth = node.Depths.Values.Min();
                 var closestGenerators = node.Depths
                     .Where(kv => kv.Value == minDepth)
                     .Select(kv => kv.Key)
@@ -189,24 +212,22 @@ namespace LaserSystem
                 if (uniqueEnergies.Count == 1)
                 {
                     node.EnergyType = uniqueEnergies.First();
-                    node.SecondaryEnergyType = EnergyType.None;
                 }
                 else
                 {
                     node.EnergyType = EnergyType.Mixed;
                 }
             }
-
-            // Обработка энергии для ресиверов
+            
             foreach (var receiver in receivers)
             {
                 if (receiver.Depths.Count == 0)
                 {
-                    receiver.IsActive = false;
+                    receiver.HasEnergy = false;
                     continue;
                 }
 
-                int minDepth = receiver.Depths.Values.Min();
+                var minDepth = receiver.Depths.Values.Min();
                 var closestGenerators = receiver.Depths
                     .Where(kv => kv.Value == minDepth)
                     .Select(kv => kv.Key)
@@ -215,15 +236,14 @@ namespace LaserSystem
                 receiver.MinDepth = minDepth;
 
                 var uniqueEnergies = new HashSet<EnergyType>(closestGenerators.Select(g => g.EnergyType));
-
-                // Проверяем, соответствует ли энергия ресивера
+                
                 if (uniqueEnergies.Count == 1 && uniqueEnergies.First() == receiver.EnergyType)
                 {
-                    receiver.IsActive = true;
+                    receiver.HasEnergy = true;
                 }
                 else
                 {
-                    receiver.IsActive = false;
+                    receiver.HasEnergy = false;
                 }
             }
         }
@@ -235,9 +255,9 @@ namespace LaserSystem
                 return;
             }
 
-            Dictionary<ConnectionNode, int> distances = new Dictionary<ConnectionNode, int>();
-            Queue<ConnectionNode> queue = new Queue<ConnectionNode>();
-            HashSet<ConnectionNode> visited = new HashSet<ConnectionNode>();
+            var distances = new Dictionary<ConnectionNode, int>();
+            var queue = new Queue<ConnectionNode>();
+            var visited = new HashSet<ConnectionNode>();
 
             queue.Enqueue(generator);
             visited.Add(generator);
@@ -249,15 +269,13 @@ namespace LaserSystem
 
                 foreach (ConnectionNode connectingNode in current.ConnectingNodes)
                 {
-                    RaycastHit hit;
-                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode, out hit);
+                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode, out var hit);
                     if (!visited.Contains(connectingNode) && !isNodeBlocked)
                     {
                         visited.Add(connectingNode);
                         distances[connectingNode] = distances[current] + 1;
                         connectingNode.Depths[generator] = distances[connectingNode];
-
-                        // Добавляем в очередь только узлы, которые могут распространять энергию
+                        
                         if (connectingNode.CanPropagateEnergy)
                         {
                             queue.Enqueue(connectingNode);
@@ -289,14 +307,14 @@ namespace LaserSystem
 
                 if (!connection.IsActive && connection.HitPoint.HasValue)
                 {
-                    bool startCloser = startNode.MinDepth <= endNode.MinDepth;
-                    Vector3 closerPos = startCloser ? start : end;
-                    Vector3 otherPos = startCloser ? end : start;
-                    EnergyType closerEnergy = startCloser ? startNode.EnergyType : endNode.EnergyType;
-                    EnergyType otherEnergy = startCloser ? endNode.EnergyType : startNode.EnergyType;
+                    var startCloser = startNode.MinDepth <= endNode.MinDepth;
+                    var closerPos = startCloser ? start : end;
+                    var otherPos = startCloser ? end : start;
+                    var closerEnergy = startCloser ? startNode.EnergyType : endNode.EnergyType;
+                    var otherEnergy = startCloser ? endNode.EnergyType : startNode.EnergyType;
                     
-                    Vector3 firstStart = closerPos;
-                    Vector3 firstEnd = connection.HitPoint.Value;
+                    var firstStart = closerPos;
+                    var firstEnd = connection.HitPoint.Value;
                     var firstDirection = firstEnd - firstStart;
                     firstDirection = firstDirection.normalized;
                     var firstPrefab = GetLineRendererByEnergyType(closerEnergy);
@@ -309,8 +327,8 @@ namespace LaserSystem
 
                     if (otherEnergy != EnergyType.None && otherEnergy != closerEnergy)
                     {
-                        Vector3 secondStart = connection.HitPoint.Value;
-                        Vector3 secondEnd = otherPos;
+                        var secondStart = connection.HitPoint.Value;
+                        var secondEnd = otherPos;
                         var secondDirection = secondEnd - secondStart;
                         secondDirection = secondDirection.normalized;
                         var secondPrefab = GetLineRendererByEnergyType(otherEnergy);
@@ -324,7 +342,7 @@ namespace LaserSystem
                 }
                 else if (startNode.EnergyType != endNode.EnergyType && startNode.EnergyType != EnergyType.None && endNode.EnergyType != EnergyType.None)
                 {
-                    bool isMixedInvolved = startNode.EnergyType == EnergyType.Mixed || endNode.EnergyType == EnergyType.Mixed;
+                    var isMixedInvolved = startNode.EnergyType == EnergyType.Mixed || endNode.EnergyType == EnergyType.Mixed;
 
                     if (isMixedInvolved)
                     {
@@ -341,8 +359,7 @@ namespace LaserSystem
                     }
                     else
                     {
-                        Vector3 midPoint = (start + end) / 2;
-
+                        var midPoint = (start + end) / 2;
                         var firstDirection = midPoint - start;
                         firstDirection = firstDirection.normalized;
                         var firstPrefab = GetLineRendererByEnergyType(startNode.EnergyType);
@@ -366,7 +383,7 @@ namespace LaserSystem
                 }
                 else
                 {
-                    var energyType = connection.EnergyType();
+                    var energyType = connection.GetEnergyType();
                     var energyPrefab = GetLineRendererByEnergyType(energyType);
                     var direction = end - start;
                     direction = direction.normalized;

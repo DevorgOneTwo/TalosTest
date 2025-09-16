@@ -3,18 +3,20 @@ using UnityEngine;
 
 public class PlayerInteraction : MonoBehaviour
 {
-    [Header("Interaction")]
-    public Transform holdPoint; // точка перед камерой, куда крепится поднятый коннектор
-    public float interactDistance = 3f;
-    public LayerMask interactMask; // маска для Raycast взаимодействия
+    [SerializeField]
+    private Transform _holdPoint;
+    [SerializeField]
+    public float _interactDistance = 3f;
+    [SerializeField]
+    public LayerMask _interactMask;
 
-    private Connector heldConnector;
+    private Connector _connectorInHands;
 
     void Update()
     {
         if (Input.GetMouseButtonDown(0))
         {
-            if (heldConnector == null)
+            if (_connectorInHands == null)
                 TryPickUp();
             else
                 TryConnectOrDrop();
@@ -23,38 +25,39 @@ public class PlayerInteraction : MonoBehaviour
 
     private void TryPickUp()
     {
-        var cam = Camera.main;
-        if (cam == null) return;
+        var camera = Camera.main;
+        if (camera == null) return;
 
-        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactMask))
+        if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, _interactDistance, _interactMask))
         {
             var connector = hit.collider.GetComponentInParent<Connector>();
             if (connector != null)
             {
-                connector.PickUp(holdPoint);
-                heldConnector = connector;
+                connector.PickUp(_holdPoint);
+                _connectorInHands = connector;
             }
         }
     }
 
     private void TryConnectOrDrop()
     {
-        var cam = Camera.main;
-        if (cam == null) return;
-
-        if (Physics.Raycast(cam.transform.position, cam.transform.forward, out RaycastHit hit, interactDistance, interactMask))
+        var camera = Camera.main;
+        if (camera == null)
+        {
+            return;
+        }
+        
+        if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, _interactDistance, _interactMask))
         {
             var node = hit.collider.GetComponentInParent<ConnectionNode>();
-            // если смотрим на какую-то ноду (и это не сам удерживаемый объект) — переключаем подключение
-            if (node != null && (heldConnector == null || node.gameObject != heldConnector.gameObject))
+            if (node != null && (_connectorInHands == null || node.gameObject != _connectorInHands.gameObject))
             {
-                heldConnector.AddConnection(node);
+                _connectorInHands.AddConnection(node);
                 return;
             }
         }
 
-        // если не подключили ни к чему — сбрасываем
-        heldConnector.Drop();
-        heldConnector = null;
+        _connectorInHands.Drop();
+        _connectorInHands = null;
     }
 }

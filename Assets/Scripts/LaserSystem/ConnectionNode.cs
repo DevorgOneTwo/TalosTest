@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using LaserSystem;
 
 namespace LaserSystem
 {
@@ -36,7 +37,7 @@ namespace LaserSystem
             return FirstNode == firstNode && SecondNode == secondNode || FirstNode == secondNode && SecondNode == firstNode;
         }
 
-        public EnergyType EnergyType()
+        public EnergyType GetEnergyType()
         {
             var firstNodeEnergy = FirstNode.EnergyType;
             var secondNodeEnergy = SecondNode.EnergyType;
@@ -47,7 +48,7 @@ namespace LaserSystem
                 return firstNodeEnergy;
             }
 
-            return global::LaserSystem.EnergyType.None;
+            return EnergyType.None;
         }
     }
 
@@ -58,16 +59,14 @@ namespace LaserSystem
         
         public Transform ConnectionTargetTransform => _connectionTargetPosition;
         public bool IsActiveNode => _connectingNodes.Count > 0;
-        public virtual bool IsActive { get; set; } // Добавляем для Receiver
+        public virtual bool HasEnergy { get; set; }
         public abstract EnergyType EnergyType { get; set; }
         public abstract NodeType NodeType { get; }
         public int MinDepth = int.MaxValue;
-        public EnergyType SecondaryEnergyType = EnergyType.None;
-        public Dictionary<ConnectionNode, int> Depths = new Dictionary<ConnectionNode, int>();
+        public Dictionary<ConnectionNode, int> Depths = new ();
         public List<ConnectionNode> ConnectingNodes => _connectingNodes;
-        private List<ConnectionNode> _connectingNodes = new ();
         
-        private List<Connection> _connections = new ();
+        private List<ConnectionNode> _connectingNodes = new ();
 
         protected virtual void Start()
         {
@@ -101,6 +100,6 @@ namespace LaserSystem
             _connectingNodes.Remove(connection);
         }
 
-        public virtual bool CanPropagateEnergy => NodeType != NodeType.Receiver;
+        public bool CanPropagateEnergy => NodeType != NodeType.Receiver;
     }
 }
