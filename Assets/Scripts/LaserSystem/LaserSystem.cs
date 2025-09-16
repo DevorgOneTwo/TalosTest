@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace LaserSystem
@@ -153,6 +154,39 @@ namespace LaserSystem
             {
                 CalculateDistances(generator);
             }
+
+            // New logic to assign energy types after all distances are calculated, handling ties
+            foreach (var node in _activeConnectionsNodes)
+            {
+                if (node.NodeType != NodeType.Connector) continue;
+
+                if (node.Depths.Count == 0)
+                {
+                    node.EnergyType = EnergyType.None;
+                    continue;
+                }
+
+                int minDepth = node.Depths.Values.Min();
+                var closestGenerators = node.Depths
+                    .Where(kv => kv.Value == minDepth)
+                    .Select(kv => kv.Key)
+                    .ToList();
+
+                node.MinDepth = minDepth;
+
+                var uniqueEnergies = new HashSet<EnergyType>(closestGenerators.Select(g => g.EnergyType));
+
+                if (uniqueEnergies.Count == 1)
+                {
+                    node.EnergyType = uniqueEnergies.First();
+                    node.SecondaryEnergyType = EnergyType.None;
+                }
+                else
+                {
+                    node.EnergyType = EnergyType.Mixed;
+                    // Optionally, you can store secondary energies if needed, but for now, we set to Mixed
+                }
+            }
         }
 
         private void CalculateDistances(ConnectionNode generator)
@@ -187,8 +221,6 @@ namespace LaserSystem
                     }
                 }
             }
-            
-            SpreadEnergy(generator, distances);
         }
 
         private bool IsNodeBlocked(ConnectionNode first, ConnectionNode second, out RaycastHit hit)
@@ -199,67 +231,6 @@ namespace LaserSystem
             var distance = direction.magnitude;
             direction = direction.normalized;
             return Physics.Raycast(start, direction, out hit, distance, _collisionMask);
-        }
-
-        private void SpreadEnergy(ConnectionNode generator, Dictionary<ConnectionNode, int> distances)
-        {
-            var sortedNodes = new List<KeyValuePair<ConnectionNode, int>>(distances);
-            sortedNodes.Sort((a, b) => a.Value.CompareTo(b.Value));
-
-            foreach (var pair in sortedNodes)
-            {
-                if (pair.Key.NodeType != NodeType.Connector)
-                {
-                    continue;
-                }
-
-                if (IsPathBlocked(generator, pair.Key))
-                {
-                    continue;
-                }
-
-                if (pair.Value < pair.Key.MinDepth)
-                {
-                    pair.Key.MinDepth = pair.Value;
-                    pair.Key.EnergyType = generator.EnergyType;
-                }
-            }
-        }
-        
-        private bool IsPathBlocked(ConnectionNode generator, ConnectionNode target)
-        {
-            Queue<ConnectionNode> queue = new Queue<ConnectionNode>();
-            HashSet<ConnectionNode> visited = new HashSet<ConnectionNode>();
-            Dictionary<ConnectionNode, ConnectionNode> parent = new Dictionary<ConnectionNode, ConnectionNode>();
-
-            queue.Enqueue(generator);
-            visited.Add(generator);
-
-            while (queue.Count > 0)
-            {
-                ConnectionNode current = queue.Dequeue();
-
-                if (current == target)
-                {
-                    return false;
-                }
-
-                for (int i = 0; i < current.ConnectingNodes.Count; i++)
-                {
-                    ConnectionNode neighbor = current.ConnectingNodes[i];
-                    RaycastHit hit;
-                    var isNodeBlocked = IsNodeBlocked(current, neighbor, out hit);
-
-                    if (!visited.Contains(neighbor) && !isNodeBlocked)
-                    {
-                        visited.Add(neighbor);
-                        queue.Enqueue(neighbor);
-                        parent[neighbor] = current;
-                    }
-                }
-            }
-
-            return true;
         }
 
         private void VisualizeConnectionsEnergy()
@@ -311,29 +282,49 @@ namespace LaserSystem
                 }
                 else if (startNode.EnergyType != endNode.EnergyType && startNode.EnergyType != EnergyType.None && endNode.EnergyType != EnergyType.None)
                 {
-                    Vector3 midPoint = (start + end) / 2;
+                    bool isMixedInvolved = startNode.EnergyType == EnergyType.Mixed || endNode.EnergyType == EnergyType.Mixed;
 
-                    // от старт до мид
-                    var firstDirection = midPoint - start;
-                    firstDirection = firstDirection.normalized;
-                    var firstPrefab = GetLineRendererByEnergyType(startNode.EnergyType);
-                    var firstLine = Instantiate(firstPrefab, start, Quaternion.LookRotation(firstDirection));
-                    firstLine.useWorldSpace = true;
-                    firstLine.positionCount = 2;
-                    firstLine.SetPosition(0, start);
-                    firstLine.SetPosition(1, midPoint);
-                    _vfxGameObjects.Add(firstLine.gameObject);
+                    if (isMixedInvolved)
+                    {
+                        // Draw full line using the non-mixed energy type
+                        EnergyType lineEnergy = startNode.EnergyType == EnergyType.Mixed ? endNode.EnergyType : startNode.EnergyType;
+                        var prefab = GetLineRendererByEnergyType(lineEnergy);
+                        var direction = end - start;
+                        direction = direction.normalized;
+                        var line = Instantiate(prefab, start, Quaternion.LookRotation(direction));
+                        line.useWorldSpace = true;
+                        line.positionCount = 2;
+                        line.SetPosition(0, start);
+                        line.SetPosition(1, end);
+                        _vfxGameObjects.Add(line.gameObject);
+                    }
+                    else
+                    {
+                        // Original midpoint logic for non-mixed different energies
+                        Vector3 midPoint = (start + end) / 2;
 
-                    // от ент до мид
-                    var secondDirection = end - midPoint;
-                    secondDirection = secondDirection.normalized;
-                    var secondPrefab = GetLineRendererByEnergyType(endNode.EnergyType);
-                    var secondLine = Instantiate(secondPrefab, midPoint, Quaternion.LookRotation(secondDirection));
-                    secondLine.useWorldSpace = true;
-                    secondLine.positionCount = 2;
-                    secondLine.SetPosition(0, midPoint);
-                    secondLine.SetPosition(1, end);
-                    _vfxGameObjects.Add(secondLine.gameObject);
+                        // от старт до мид
+                        var firstDirection = midPoint - start;
+                        firstDirection = firstDirection.normalized;
+                        var firstPrefab = GetLineRendererByEnergyType(startNode.EnergyType);
+                        var firstLine = Instantiate(firstPrefab, start, Quaternion.LookRotation(firstDirection));
+                        firstLine.useWorldSpace = true;
+                        firstLine.positionCount = 2;
+                        firstLine.SetPosition(0, start);
+                        firstLine.SetPosition(1, midPoint);
+                        _vfxGameObjects.Add(firstLine.gameObject);
+
+                        // от ент до мид
+                        var secondDirection = end - midPoint;
+                        secondDirection = secondDirection.normalized;
+                        var secondPrefab = GetLineRendererByEnergyType(endNode.EnergyType);
+                        var secondLine = Instantiate(secondPrefab, midPoint, Quaternion.LookRotation(secondDirection));
+                        secondLine.useWorldSpace = true;
+                        secondLine.positionCount = 2;
+                        secondLine.SetPosition(0, midPoint);
+                        secondLine.SetPosition(1, end);
+                        _vfxGameObjects.Add(secondLine.gameObject);
+                    }
                 }
                 else
                 {
@@ -371,6 +362,7 @@ namespace LaserSystem
             switch (energyType)
             {
                 case EnergyType.None:
+                case EnergyType.Mixed: // Treat Mixed as None for line rendering (or customize if needed)
                     return _simplePathPrefab;
                 case EnergyType.Red:
                     return _redConnectionLine;
