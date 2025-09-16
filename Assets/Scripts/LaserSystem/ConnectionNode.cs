@@ -24,6 +24,7 @@ namespace LaserSystem
         public readonly ConnectionNode FirstNode;
         public readonly ConnectionNode SecondNode;
         public int Depth = -1;
+        public bool IsActive = true;
         
         public Connection(ConnectionNode firstNode, ConnectionNode secondNode)
         {
@@ -35,14 +36,6 @@ namespace LaserSystem
         public bool IsConnectionWithNodes(ConnectionNode firstNode, ConnectionNode secondNode)
         {
             return FirstNode == firstNode && SecondNode == secondNode || FirstNode == secondNode && SecondNode == firstNode;
-        }
-
-        public bool HasNotConflictedEnergy()
-        {
-            var firstNodeEnergy = FirstNode.EnergyType;
-            var secondNodeEnergy = SecondNode.EnergyType;
-            
-            return firstNodeEnergy != global::LaserSystem.EnergyType.None && firstNodeEnergy == secondNodeEnergy;
         }
 
         public EnergyType EnergyType()

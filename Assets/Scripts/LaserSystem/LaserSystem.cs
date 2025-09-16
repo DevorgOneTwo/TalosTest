@@ -16,10 +16,10 @@ namespace LaserSystem
         [SerializeField] 
         private LayerMask _collisionMask;
         
-        private List<ConnectionNode> _allConnectionNodes = new ();
-        private List<ConnectionNode> _activeConnectionsNodes = new ();
+        private List<ConnectionNode> _allConnectionNodes = new();
+        private List<ConnectionNode> _activeConnectionsNodes = new();
 
-        private List<Connection> _connections = new ();
+        private List<Connection> _connections = new();
 
         private List<GameObject> _vfxGameObjects = new();
 
@@ -119,6 +119,8 @@ namespace LaserSystem
                     if (!HasConnectionWithNodes(connections, connectionNode, connectingNode))
                     {
                         var newConnection = new Connection(connectionNode, connectingNode);
+                        // Проверяем, заблокировано ли ребро игроком
+                        newConnection.IsActive = !IsNodeBlocked(connectionNode, connectingNode);
                         connections.Add(newConnection);
                     }
                 }
@@ -129,11 +131,6 @@ namespace LaserSystem
 
         private void SetEnergyTypes()
         {
-            //выстроить цепочку коннекшенов
-            //найти генераторы
-            //от генераторов начать проходить по нодам
-            //если ресивер, то не идти дальше
-
             var generators = new List<ConnectionNode>();
             
             for (var i = 0; i < _activeConnectionsNodes.Count; i++)
@@ -158,13 +155,13 @@ namespace LaserSystem
                 return;
             }
 
-            Dictionary<ConnectionNode, int> distances = new Dictionary<ConnectionNode, int>(); // Расстояния от генератора
+            Dictionary<ConnectionNode, int> distances = new Dictionary<ConnectionNode, int>();
             Queue<ConnectionNode> queue = new Queue<ConnectionNode>();
             HashSet<ConnectionNode> visited = new HashSet<ConnectionNode>();
 
             queue.Enqueue(generator);
             visited.Add(generator);
-            distances[generator] = 0; // Генератор на расстоянии 0
+            distances[generator] = 0;
 
             while (queue.Count > 0)
             {
@@ -172,12 +169,14 @@ namespace LaserSystem
 
                 foreach (ConnectionNode connectingNode in current.ConnectingNodes)
                 {
-                    if (!visited.Contains(connectingNode))
+                    // Проверяем, активно ли ребро
+                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode);
+                    if (!visited.Contains(connectingNode) && !isNodeBlocked)
                     {
                         visited.Add(connectingNode);
                         queue.Enqueue(connectingNode);
                         distances[connectingNode] = distances[current] + 1;
-                        connectingNode.Depth += 1;
+                        connectingNode.Depth = distances[connectingNode];
                     }
                 }
             }
@@ -252,11 +251,43 @@ namespace LaserSystem
                     continue;
                 }
 
-                //тут обрабатывать пересечение
                 pair.Key.EnergyType = generator.EnergyType;
-                
-                Debug.Log($"Энергия дошла до {pair.Key.name} на расстоянии {pair.Value}");
             }
+        }
+        
+        private bool IsPathBlocked(ConnectionNode generator, ConnectionNode target)
+        {
+            Queue<ConnectionNode> queue = new Queue<ConnectionNode>();
+            HashSet<ConnectionNode> visited = new HashSet<ConnectionNode>();
+            Dictionary<ConnectionNode, ConnectionNode> parent = new Dictionary<ConnectionNode, ConnectionNode>();
+
+            queue.Enqueue(generator);
+            visited.Add(generator);
+
+            while (queue.Count > 0)
+            {
+                ConnectionNode current = queue.Dequeue();
+
+                if (current == target)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < current.ConnectingNodes.Count; i++)
+                {
+                    ConnectionNode neighbor = current.ConnectingNodes[i];
+                    var isNodeBlocked = IsNodeBlocked(current, neighbor);
+
+                    if (!visited.Contains(neighbor) && !isNodeBlocked)
+                    {
+                        visited.Add(neighbor);
+                        queue.Enqueue(neighbor);
+                        parent[neighbor] = current;
+                    }
+                }
+            }
+
+            return true;
         }
 
         private void VisualizeConnectionsEnergy()
@@ -264,6 +295,12 @@ namespace LaserSystem
             for (var i = 0; i < _connections.Count; i++)
             {
                 var connection = _connections[i];
+                // Визуализируем только активные рёбра
+                if (!connection.IsActive)
+                {
+                    continue;
+                }
+
                 var energyType = connection.EnergyType();
                 var energyPrefab = GetLineRendererByEnergyType(energyType);
                 var direction = connection.SecondNode.ConnectionTargetTransform.position - connection.FirstNode.ConnectionTargetTransform.position;
