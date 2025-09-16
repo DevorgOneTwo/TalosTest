@@ -36,6 +36,30 @@ namespace LaserSystem
         {
             return FirstNode == firstNode && SecondNode == secondNode || FirstNode == secondNode && SecondNode == firstNode;
         }
+
+        public bool HasNotConflictedEnergy()
+        {
+            var firstNodeEnergy = FirstNode.EnergyType;
+            var secondNodeEnergy = SecondNode.EnergyType;
+            
+            return firstNodeEnergy != global::LaserSystem.EnergyType.None && firstNodeEnergy == secondNodeEnergy;
+        }
+
+        public EnergyType EnergyType()
+        {
+            var firstNodeEnergy = FirstNode.EnergyType;
+            var secondNodeEnergy = SecondNode.EnergyType;
+            var hasSameEnergyType = firstNodeEnergy == secondNodeEnergy;
+
+            if (hasSameEnergyType)
+            {
+                return firstNodeEnergy;
+            }
+            else
+            {
+                return global::LaserSystem.EnergyType.None;
+            }
+        }
     }
 
     public abstract class ConnectionNode : MonoBehaviour
@@ -45,8 +69,9 @@ namespace LaserSystem
         
         public Transform ConnectionTargetTransform => _connectionTargetPosition;
         public bool IsActiveNode => _connectingNodes.Count > 0;
-        public abstract EnergyType EnergyType { get; }
+        public abstract EnergyType EnergyType { get; set; }
         public abstract NodeType NodeType { get; }
+        public int Depth;
         
         public List<ConnectionNode> ConnectingNodes => _connectingNodes;
         private List<ConnectionNode> _connectingNodes = new ();
@@ -82,10 +107,7 @@ namespace LaserSystem
 
         public void RemoveConnection(ConnectionNode connection)
         {
-            if (_connectingNodes.Remove(connection))
-            {
-                connection.RemoveConnection(this);
-            }
+            _connectingNodes.Remove(connection);
         }
 
         public bool HasConnectionWithNode(ConnectionNode connection)

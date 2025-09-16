@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace LaserSystem
@@ -7,6 +8,10 @@ namespace LaserSystem
     {
         [SerializeField] 
         private LineRenderer _simplePathPrefab;
+        [SerializeField] 
+        private LineRenderer _redConnectionLine;
+        [SerializeField]
+        private LineRenderer _blueConnectionLine;
         
         private List<ConnectionNode> _allConnectionNodes = new ();
         private List<ConnectionNode> _activeConnectionsNodes = new ();
@@ -43,9 +48,11 @@ namespace LaserSystem
             ClearVfx();
             SelectActiveConnections();
             
+            SetEnergyTypes();
             _connections.Clear();
             _connections = FindAllConnections();
             DrawConnectionsDebug(_connections);
+            VisualizeConnectionsEnergy();
         }
 
         private void ClearVfx()
@@ -112,27 +119,148 @@ namespace LaserSystem
             return connections;
         }
 
-        private void SetEnergyTypes(List<Connection> connections)
+        private void SetEnergyTypes()
         {
             //выстроить цепочку коннекшенов
             //найти генераторы
             //от генераторов начать проходить по нодам
             //если ресивер, то не идти дальше
 
-            var depthIndex = 0;
-            var generatorConnections = new List<Connection>();
-            for (var i = 0; i < connections.Count; i++)
+            var generators = new List<ConnectionNode>();
+            
+            for (var i = 0; i < _activeConnectionsNodes.Count; i++)
             {
-                var connection = connections[i];
-                if (connection.IsFirstChainConnection)
+                var connectionNode = _activeConnectionsNodes[i];
+                if (connectionNode.NodeType == NodeType.Generator)
                 {
-                    generatorConnections.Add(connection);
+                    generators.Add(connectionNode);
                 }
             }
             
-            for (var i = 0; i < generatorConnections.Count; i++)
+            for (var i = 0; i < generators.Count; i++)
             {
+                CalculateDistances(generators[i]);
+            }
+        }
+
+        private void CalculateDistances(ConnectionNode generator)
+        {
+            if (generator.NodeType != NodeType.Generator)
+            {
+                return;
+            }
+
+            Dictionary<ConnectionNode, int> distances = new Dictionary<ConnectionNode, int>(); // Расстояния от генератора
+            Queue<ConnectionNode> queue = new Queue<ConnectionNode>();
+            HashSet<ConnectionNode> visited = new HashSet<ConnectionNode>();
+
+            queue.Enqueue(generator);
+            visited.Add(generator);
+            distances[generator] = 0; // Генератор на расстоянии 0
+
+            while (queue.Count > 0)
+            {
+                ConnectionNode current = queue.Dequeue();
+
+                foreach (ConnectionNode connectingNode in current.ConnectingNodes)
+                {
+                    if (!visited.Contains(connectingNode))
+                    {
+                        visited.Add(connectingNode);
+                        queue.Enqueue(connectingNode);
+                        distances[connectingNode] = distances[current] + 1;
+                        connectingNode.Depth += 1;
+                    }
+                }
+            }
+
+            List<ConnectionNode> closestConnectors = new List<ConnectionNode>();
+            List<ConnectionNode> farthestConnectors = new List<ConnectionNode>();
+
+            var minDistance = int.MaxValue;
+            var maxDistance = 0;
+
+            foreach (var distance in distances)
+            {
+                if (distance.Key == generator)
+                {
+                    continue;
+                }
+
+                var distanceValue = distance.Value;
                 
+                if (distanceValue < minDistance && distanceValue > 0)
+                {
+                    minDistance = distanceValue;
+                    closestConnectors.Clear();
+                    closestConnectors.Add(distance.Key);
+                }
+                else if (distanceValue == minDistance)
+                {
+                    closestConnectors.Add(distance.Key);
+                }
+
+                if (distanceValue > maxDistance)
+                {
+                    maxDistance = distanceValue;
+                    farthestConnectors.Clear();
+                    farthestConnectors.Add(distance.Key);
+                }
+                else if (distanceValue == maxDistance)
+                {
+                    farthestConnectors.Add(distance.Key);
+                }
+            }
+
+            Debug.Log($"Ближайшие коннекторы (расстояние {minDistance}): {closestConnectors.Count} шт.");
+            foreach (var node in closestConnectors)
+            {
+                Debug.Log(node.name);
+            }
+
+            Debug.Log($"Дальние коннекторы (расстояние {maxDistance}): {farthestConnectors.Count} шт.");
+            foreach (var node in farthestConnectors)
+            {
+                Debug.Log(node.name);
+            }
+            
+            SpreadEnergy(generator, distances);
+        }
+        
+        private void SpreadEnergy(ConnectionNode generator, Dictionary<ConnectionNode, int> distances)
+        {
+            var sortedNodes = new List<KeyValuePair<ConnectionNode, int>>(distances);
+            sortedNodes.Sort((a, b) => a.Value.CompareTo(b.Value));
+
+            foreach (var pair in sortedNodes)
+            {
+                if (pair.Key == generator)
+                {
+                    continue;
+                }
+
+                //тут обрабатывать пересечение
+                pair.Key.EnergyType = generator.EnergyType;
+                
+                Debug.Log($"Энергия дошла до {pair.Key.name} на расстоянии {pair.Value}");
+            }
+        }
+
+        private void VisualizeConnectionsEnergy()
+        {
+            for (var i = 0; i < _connections.Count; i++)
+            {
+                var connection = _connections[i];
+                var energyType = connection.EnergyType();
+                var energyPrefab = GetLineRendererByEnergyType(energyType);
+                var direction = connection.SecondNode.ConnectionTargetTransform.position - connection.FirstNode.ConnectionTargetTransform.position;
+                direction = direction.normalized;
+                var energyLine = Instantiate(energyPrefab, connection.FirstNode.ConnectionTargetTransform.position, Quaternion.LookRotation(direction));
+                energyLine.useWorldSpace = true;
+                energyLine.positionCount = 2;
+                energyLine.SetPosition(0, connection.FirstNode.ConnectionTargetTransform.position);
+                energyLine.SetPosition(1, connection.SecondNode.ConnectionTargetTransform.position);
+                _vfxGameObjects.Add(energyLine.gameObject);
             }
         }
 
@@ -148,6 +276,21 @@ namespace LaserSystem
             }
             
             return false;
+        }
+
+        private LineRenderer GetLineRendererByEnergyType(EnergyType energyType)
+        {
+            switch (energyType)
+            {
+                case EnergyType.None:
+                    return _simplePathPrefab;
+                case EnergyType.Red:
+                    return _redConnectionLine;
+                case EnergyType.Blue:
+                    return _blueConnectionLine;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(energyType), energyType, null);
+            }
         }
     }
 }

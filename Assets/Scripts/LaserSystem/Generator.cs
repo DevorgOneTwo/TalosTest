@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace LaserSystem
 {
@@ -6,8 +7,13 @@ namespace LaserSystem
     {
         [SerializeField]
         private EnergyType _energyType;
-        
-        public override EnergyType EnergyType => _energyType;
-        public override NodeType NodeType => NodeType.Connector;
+
+        public override EnergyType EnergyType { get; set; }
+        public override NodeType NodeType => NodeType.Generator;
+
+        private void Awake()
+        {
+            EnergyType = _energyType;
+        }
     }
 }

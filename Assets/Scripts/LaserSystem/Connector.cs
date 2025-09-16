@@ -11,7 +11,7 @@ namespace LaserSystem
         [SerializeField]
         private Collider _collider;
 
-        public override EnergyType EnergyType => GetEnergyTypeByConnections();
+        public override EnergyType EnergyType { get; set; }
         public override NodeType NodeType => NodeType.Connector;
         
         public bool IsHeldByPlayer { get; private set; }
@@ -20,11 +20,6 @@ namespace LaserSystem
         {
             base.Start();
             _collider = GetComponentInChildren<BoxCollider>();
-        }
-
-        private EnergyType GetEnergyTypeByConnections()
-        {
-            return EnergyType.None;
         }
 
         public void PickUp(Transform playerHoldPoint)

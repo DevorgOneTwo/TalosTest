@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace LaserSystem
 {
@@ -9,8 +10,13 @@ namespace LaserSystem
         
         private bool _isActive;
         
-        public override EnergyType EnergyType => _energyType;
+        public override EnergyType EnergyType { get; set; }
         public override NodeType NodeType => NodeType.Receiver;
+
+        private void Awake()
+        {
+            EnergyType = _energyType;
+        }
 
         public void SetActive(bool active)
         {
