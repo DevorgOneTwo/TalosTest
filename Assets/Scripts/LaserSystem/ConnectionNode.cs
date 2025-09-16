@@ -63,8 +63,8 @@ namespace LaserSystem
         public bool IsActiveNode => _connectingNodes.Count > 0;
         public abstract EnergyType EnergyType { get; set; }
         public abstract NodeType NodeType { get; }
-        public int Depth;
-        
+        public int MinDepth = int.MaxValue;
+        public EnergyType SecondaryEnergyType = EnergyType.None;
         public Dictionary<ConnectionNode, int> Depths = new Dictionary<ConnectionNode, int>();
         public List<ConnectionNode> ConnectingNodes => _connectingNodes;
         private List<ConnectionNode> _connectingNodes = new ();

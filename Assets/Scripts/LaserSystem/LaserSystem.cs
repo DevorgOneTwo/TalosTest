@@ -16,10 +16,10 @@ namespace LaserSystem
         [SerializeField] 
         private LayerMask _collisionMask;
         
-        private List<ConnectionNode> _allConnectionNodes = new();
-        private List<ConnectionNode> _activeConnectionsNodes = new();
+        private List<ConnectionNode> _allConnectionNodes = new ();
+        private List<ConnectionNode> _activeConnectionsNodes = new ();
 
-        private List<Connection> _connections = new();
+        private List<Connection> _connections = new ();
 
         private List<GameObject> _vfxGameObjects = new();
 
@@ -79,6 +79,8 @@ namespace LaserSystem
                     _activeConnectionsNodes.Add(connectionNode);
                 }
 
+                connectionNode.Depths.Clear();
+                connectionNode.MinDepth = connectionNode.NodeType == NodeType.Generator ? 0 : int.MaxValue;
                 if (connectionNode.NodeType == NodeType.Connector)
                 {
                     connectionNode.EnergyType = EnergyType.None;
@@ -100,7 +102,11 @@ namespace LaserSystem
                 debugLine.positionCount = 2;
                 debugLine.SetPosition(0, start);
                 debugLine.SetPosition(1, end);
-                
+                if (!connection.IsActive)
+                {
+                    debugLine.startColor = Color.gray;
+                    debugLine.endColor = Color.gray;
+                }
                 _vfxGameObjects.Add(debugLine.gameObject);
             }
         }
@@ -142,10 +148,10 @@ namespace LaserSystem
                     generators.Add(connectionNode);
                 }
             }
-            
-            for (var i = 0; i < generators.Count; i++)
+
+            foreach (var generator in generators)
             {
-                CalculateDistances(generators[i]);
+                CalculateDistances(generator);
             }
         }
 
@@ -170,52 +176,15 @@ namespace LaserSystem
 
                 foreach (ConnectionNode connectingNode in current.ConnectingNodes)
                 {
-                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode, out var hit);
+                    RaycastHit hit;
+                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode, out hit);
                     if (!visited.Contains(connectingNode) && !isNodeBlocked)
                     {
                         visited.Add(connectingNode);
                         queue.Enqueue(connectingNode);
                         distances[connectingNode] = distances[current] + 1;
-                        connectingNode.Depth = distances[connectingNode];
+                        connectingNode.Depths[generator] = distances[connectingNode];
                     }
-                }
-            }
-
-            List<ConnectionNode> closestConnectors = new List<ConnectionNode>();
-            List<ConnectionNode> farthestConnectors = new List<ConnectionNode>();
-
-            var minDistance = int.MaxValue;
-            var maxDistance = 0;
-
-            foreach (var distance in distances)
-            {
-                if (distance.Key.NodeType == NodeType.Generator)
-                {
-                    continue;
-                }
-
-                var distanceValue = distance.Value;
-                
-                if (distanceValue < minDistance && distanceValue > 0)
-                {
-                    minDistance = distanceValue;
-                    closestConnectors.Clear();
-                    closestConnectors.Add(distance.Key);
-                }
-                else if (distanceValue == minDistance)
-                {
-                    closestConnectors.Add(distance.Key);
-                }
-
-                if (distanceValue > maxDistance)
-                {
-                    maxDistance = distanceValue;
-                    farthestConnectors.Clear();
-                    farthestConnectors.Add(distance.Key);
-                }
-                else if (distanceValue == maxDistance)
-                {
-                    farthestConnectors.Add(distance.Key);
                 }
             }
             
@@ -249,7 +218,11 @@ namespace LaserSystem
                     continue;
                 }
 
-                pair.Key.EnergyType = generator.EnergyType;
+                if (pair.Value < pair.Key.MinDepth)
+                {
+                    pair.Key.MinDepth = pair.Value;
+                    pair.Key.EnergyType = generator.EnergyType;
+                }
             }
         }
         
@@ -296,33 +269,86 @@ namespace LaserSystem
                 var connection = _connections[i];
                 var startNode = connection.FirstNode;
                 var endNode = connection.SecondNode;
-                
-                Vector3 start = startNode.ConnectionTargetTransform.position;
-                Vector3 end;
+                var start = startNode.ConnectionTargetTransform.position;
+                var end = endNode.ConnectionTargetTransform.position;
 
-                var energyType = connection.EnergyType();
                 if (!connection.IsActive && connection.HitPoint.HasValue)
                 {
-                    var mainNode = startNode.Depth <= endNode.Depth || endNode.Depth == -1 
-                        ? startNode : endNode;
-                    start = mainNode.ConnectionTargetTransform.position;
-                    end = connection.HitPoint.Value;
-                    energyType = mainNode.EnergyType;
+                    //если стоит игрок
+                    bool startCloser = startNode.MinDepth <= endNode.MinDepth;
+                    Vector3 closerPos = startCloser ? start : end;
+                    Vector3 otherPos = startCloser ? end : start;
+                    EnergyType closerEnergy = startCloser ? startNode.EnergyType : endNode.EnergyType;
+                    EnergyType otherEnergy = startCloser ? endNode.EnergyType : startNode.EnergyType;
+                    
+                    Vector3 firstStart = closerPos;
+                    Vector3 firstEnd = connection.HitPoint.Value;
+                    var firstDirection = firstEnd - firstStart;
+                    firstDirection = firstDirection.normalized;
+                    var firstPrefab = GetLineRendererByEnergyType(closerEnergy);
+                    var firstLine = Instantiate(firstPrefab, firstStart, Quaternion.LookRotation(firstDirection));
+                    firstLine.useWorldSpace = true;
+                    firstLine.positionCount = 2;
+                    firstLine.SetPosition(0, firstStart);
+                    firstLine.SetPosition(1, firstEnd);
+                    _vfxGameObjects.Add(firstLine.gameObject);
+
+                    // отрисовка до от одного генератор до другого
+                    if (otherEnergy != EnergyType.None && otherEnergy != closerEnergy)
+                    {
+                        Vector3 secondStart = connection.HitPoint.Value;
+                        Vector3 secondEnd = otherPos;
+                        var secondDirection = secondEnd - secondStart;
+                        secondDirection = secondDirection.normalized;
+                        var secondPrefab = GetLineRendererByEnergyType(otherEnergy);
+                        var secondLine = Instantiate(secondPrefab, secondStart, Quaternion.LookRotation(secondDirection));
+                        secondLine.useWorldSpace = true;
+                        secondLine.positionCount = 2;
+                        secondLine.SetPosition(0, secondStart);
+                        secondLine.SetPosition(1, secondEnd);
+                        _vfxGameObjects.Add(secondLine.gameObject);
+                    }
+                }
+                else if (startNode.EnergyType != endNode.EnergyType && startNode.EnergyType != EnergyType.None && endNode.EnergyType != EnergyType.None)
+                {
+                    Vector3 midPoint = (start + end) / 2;
+
+                    // от старт до мид
+                    var firstDirection = midPoint - start;
+                    firstDirection = firstDirection.normalized;
+                    var firstPrefab = GetLineRendererByEnergyType(startNode.EnergyType);
+                    var firstLine = Instantiate(firstPrefab, start, Quaternion.LookRotation(firstDirection));
+                    firstLine.useWorldSpace = true;
+                    firstLine.positionCount = 2;
+                    firstLine.SetPosition(0, start);
+                    firstLine.SetPosition(1, midPoint);
+                    _vfxGameObjects.Add(firstLine.gameObject);
+
+                    // от ент до мид
+                    var secondDirection = end - midPoint;
+                    secondDirection = secondDirection.normalized;
+                    var secondPrefab = GetLineRendererByEnergyType(endNode.EnergyType);
+                    var secondLine = Instantiate(secondPrefab, midPoint, Quaternion.LookRotation(secondDirection));
+                    secondLine.useWorldSpace = true;
+                    secondLine.positionCount = 2;
+                    secondLine.SetPosition(0, midPoint);
+                    secondLine.SetPosition(1, end);
+                    _vfxGameObjects.Add(secondLine.gameObject);
                 }
                 else
                 {
-                    end = endNode.ConnectionTargetTransform.position;
+                    // полное реьро
+                    var energyType = connection.EnergyType();
+                    var energyPrefab = GetLineRendererByEnergyType(energyType);
+                    var direction = end - start;
+                    direction = direction.normalized;
+                    var energyLine = Instantiate(energyPrefab, start, Quaternion.LookRotation(direction));
+                    energyLine.useWorldSpace = true;
+                    energyLine.positionCount = 2;
+                    energyLine.SetPosition(0, start);
+                    energyLine.SetPosition(1, end);
+                    _vfxGameObjects.Add(energyLine.gameObject);
                 }
-
-                var energyPrefab = GetLineRendererByEnergyType(energyType);
-                var direction = end - start;
-                direction = direction.normalized;
-                var energyLine = Instantiate(energyPrefab, start, Quaternion.LookRotation(direction));
-                energyLine.useWorldSpace = true;
-                energyLine.positionCount = 2;
-                energyLine.SetPosition(0, start);
-                energyLine.SetPosition(1, end);
-                _vfxGameObjects.Add(energyLine.gameObject);
             }
         }
 

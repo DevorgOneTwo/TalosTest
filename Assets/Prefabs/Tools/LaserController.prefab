@@ -50,7 +50,7 @@ MonoBehaviour:
     type: 3}
   _blueConnectionLine: {fileID: 120781623809727230, guid: 84819b72fe24dd5428797bb5f6be1535,
     type: 3}
-  _mixedConnectionLine: {fileID: 6769164827980403237, guid: 23039dccf6b5ebe429e0ed5603f53bd5,
+  _sparksPrefab: {fileID: 5949683234116493305, guid: 2f7b8a21a0aae5f45b7c574ad76ab22c,
     type: 3}
   _collisionMask:
     serializedVersion: 2
