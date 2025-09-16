@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace LaserSystem
 {
@@ -15,7 +14,8 @@ namespace LaserSystem
     {
         None,
         Red,
-        Blue
+        Blue,
+        Mixed
     }
 
     public class Connection
@@ -25,6 +25,7 @@ namespace LaserSystem
         public readonly ConnectionNode SecondNode;
         public int Depth = -1;
         public bool IsActive = true;
+        public Vector3? HitPoint = null;
         
         public Connection(ConnectionNode firstNode, ConnectionNode secondNode)
         {
@@ -48,10 +49,8 @@ namespace LaserSystem
             {
                 return firstNodeEnergy;
             }
-            else
-            {
-                return global::LaserSystem.EnergyType.None;
-            }
+
+            return global::LaserSystem.EnergyType.None;
         }
     }
 
@@ -66,6 +65,7 @@ namespace LaserSystem
         public abstract NodeType NodeType { get; }
         public int Depth;
         
+        public Dictionary<ConnectionNode, int> Depths = new Dictionary<ConnectionNode, int>();
         public List<ConnectionNode> ConnectingNodes => _connectingNodes;
         private List<ConnectionNode> _connectingNodes = new ();
         

@@ -50,6 +50,8 @@ MonoBehaviour:
     type: 3}
   _blueConnectionLine: {fileID: 120781623809727230, guid: 84819b72fe24dd5428797bb5f6be1535,
     type: 3}
+  _mixedConnectionLine: {fileID: 6769164827980403237, guid: 23039dccf6b5ebe429e0ed5603f53bd5,
+    type: 3}
   _collisionMask:
     serializedVersion: 2
     m_Bits: 64

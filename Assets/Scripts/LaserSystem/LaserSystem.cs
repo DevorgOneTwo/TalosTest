@@ -119,8 +119,9 @@ namespace LaserSystem
                     if (!HasConnectionWithNodes(connections, connectionNode, connectingNode))
                     {
                         var newConnection = new Connection(connectionNode, connectingNode);
-                        // Проверяем, заблокировано ли ребро игроком
-                        newConnection.IsActive = !IsNodeBlocked(connectionNode, connectingNode);
+                        RaycastHit hit;
+                        newConnection.IsActive = !IsNodeBlocked(connectionNode, connectingNode, out hit);
+                        newConnection.HitPoint = newConnection.IsActive ? null : hit.point;
                         connections.Add(newConnection);
                     }
                 }
@@ -169,8 +170,7 @@ namespace LaserSystem
 
                 foreach (ConnectionNode connectingNode in current.ConnectingNodes)
                 {
-                    // Проверяем, активно ли ребро
-                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode);
+                    bool isNodeBlocked = IsNodeBlocked(current, connectingNode, out var hit);
                     if (!visited.Contains(connectingNode) && !isNodeBlocked)
                     {
                         visited.Add(connectingNode);
@@ -222,16 +222,14 @@ namespace LaserSystem
             SpreadEnergy(generator, distances);
         }
 
-        private bool IsNodeBlocked(ConnectionNode first, ConnectionNode second)
+        private bool IsNodeBlocked(ConnectionNode first, ConnectionNode second, out RaycastHit hit)
         {
             var start = first.ConnectionTargetTransform.position;
             var end = second.ConnectionTargetTransform.position;
             var direction = end - start;
             var distance = direction.magnitude;
             direction = direction.normalized;
-            var hasRaycast = Physics.Raycast(start, direction, out RaycastHit hit, distance, _collisionMask);
-            
-            return hasRaycast;
+            return Physics.Raycast(start, direction, out hit, distance, _collisionMask);
         }
 
         private void SpreadEnergy(ConnectionNode generator, Dictionary<ConnectionNode, int> distances)
@@ -276,7 +274,8 @@ namespace LaserSystem
                 for (int i = 0; i < current.ConnectingNodes.Count; i++)
                 {
                     ConnectionNode neighbor = current.ConnectingNodes[i];
-                    var isNodeBlocked = IsNodeBlocked(current, neighbor);
+                    RaycastHit hit;
+                    var isNodeBlocked = IsNodeBlocked(current, neighbor, out hit);
 
                     if (!visited.Contains(neighbor) && !isNodeBlocked)
                     {
@@ -295,21 +294,34 @@ namespace LaserSystem
             for (var i = 0; i < _connections.Count; i++)
             {
                 var connection = _connections[i];
-                // Визуализируем только активные рёбра
-                if (!connection.IsActive)
-                {
-                    continue;
-                }
+                var startNode = connection.FirstNode;
+                var endNode = connection.SecondNode;
+                
+                Vector3 start = startNode.ConnectionTargetTransform.position;
+                Vector3 end;
 
                 var energyType = connection.EnergyType();
+                if (!connection.IsActive && connection.HitPoint.HasValue)
+                {
+                    var mainNode = startNode.Depth <= endNode.Depth || endNode.Depth == -1 
+                        ? startNode : endNode;
+                    start = mainNode.ConnectionTargetTransform.position;
+                    end = connection.HitPoint.Value;
+                    energyType = mainNode.EnergyType;
+                }
+                else
+                {
+                    end = endNode.ConnectionTargetTransform.position;
+                }
+
                 var energyPrefab = GetLineRendererByEnergyType(energyType);
-                var direction = connection.SecondNode.ConnectionTargetTransform.position - connection.FirstNode.ConnectionTargetTransform.position;
+                var direction = end - start;
                 direction = direction.normalized;
-                var energyLine = Instantiate(energyPrefab, connection.FirstNode.ConnectionTargetTransform.position, Quaternion.LookRotation(direction));
+                var energyLine = Instantiate(energyPrefab, start, Quaternion.LookRotation(direction));
                 energyLine.useWorldSpace = true;
                 energyLine.positionCount = 2;
-                energyLine.SetPosition(0, connection.FirstNode.ConnectionTargetTransform.position);
-                energyLine.SetPosition(1, connection.SecondNode.ConnectionTargetTransform.position);
+                energyLine.SetPosition(0, start);
+                energyLine.SetPosition(1, end);
                 _vfxGameObjects.Add(energyLine.gameObject);
             }
         }
