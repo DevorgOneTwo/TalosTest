@@ -7,8 +7,14 @@ namespace LaserSystem
     {
         [SerializeField]
         private EnergyType _energyType;
-        
-        private bool _isActive;
+        [SerializeField]
+        private bool _isActive = false;
+
+        public override bool IsActive
+        {
+            get => _isActive;
+            set => _isActive = value;
+        }
         
         public override EnergyType EnergyType { get; set; }
         public override NodeType NodeType => NodeType.Receiver;
@@ -16,16 +22,6 @@ namespace LaserSystem
         private void Awake()
         {
             EnergyType = _energyType;
-        }
-
-        public void SetActive(bool active)
-        {
-            _isActive = active;
-        }
-
-        private EnergyType GetEnergyTypeByConnections()
-        {
-            return EnergyType.None;
         }
     }
 }

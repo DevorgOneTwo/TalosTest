@@ -20,10 +20,8 @@ namespace LaserSystem
 
     public class Connection
     {
-        public readonly bool IsFirstChainConnection;
         public readonly ConnectionNode FirstNode;
         public readonly ConnectionNode SecondNode;
-        public int Depth = -1;
         public bool IsActive = true;
         public Vector3? HitPoint = null;
         
@@ -31,7 +29,6 @@ namespace LaserSystem
         {
             FirstNode = firstNode;
             SecondNode = secondNode;
-            IsFirstChainConnection = firstNode.NodeType == NodeType.Generator || secondNode.NodeType == NodeType.Connector;
         }
 
         public bool IsConnectionWithNodes(ConnectionNode firstNode, ConnectionNode secondNode)
@@ -61,6 +58,7 @@ namespace LaserSystem
         
         public Transform ConnectionTargetTransform => _connectionTargetPosition;
         public bool IsActiveNode => _connectingNodes.Count > 0;
+        public virtual bool IsActive { get; set; } // Добавляем для Receiver
         public abstract EnergyType EnergyType { get; set; }
         public abstract NodeType NodeType { get; }
         public int MinDepth = int.MaxValue;
@@ -98,14 +96,11 @@ namespace LaserSystem
             connectionNode.AddConnection(this);
         }
 
-        public void RemoveConnection(ConnectionNode connection)
+        private void RemoveConnection(ConnectionNode connection)
         {
             _connectingNodes.Remove(connection);
         }
 
-        public bool HasConnectionWithNode(ConnectionNode connection)
-        {
-            return _connectingNodes.Contains(connection);
-        }
+        public virtual bool CanPropagateEnergy => NodeType != NodeType.Receiver;
     }
 }

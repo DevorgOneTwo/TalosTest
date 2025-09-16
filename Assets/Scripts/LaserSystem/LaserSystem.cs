@@ -17,10 +17,10 @@ namespace LaserSystem
         [SerializeField] 
         private LayerMask _collisionMask;
         
-        private List<ConnectionNode> _allConnectionNodes = new ();
-        private List<ConnectionNode> _activeConnectionsNodes = new ();
+        private List<ConnectionNode> _allConnectionNodes = new();
+        private List<ConnectionNode> _activeConnectionsNodes = new();
 
-        private List<Connection> _connections = new ();
+        private List<Connection> _connections = new();
 
         private List<GameObject> _vfxGameObjects = new();
 
@@ -86,6 +86,10 @@ namespace LaserSystem
                 {
                     connectionNode.EnergyType = EnergyType.None;
                 }
+                if (connectionNode.NodeType == NodeType.Receiver)
+                {
+                    connectionNode.IsActive = false;
+                }
             }
         }
 
@@ -140,6 +144,7 @@ namespace LaserSystem
         private void SetEnergyTypes()
         {
             var generators = new List<ConnectionNode>();
+            var receivers = new List<ConnectionNode>();
             
             for (var i = 0; i < _activeConnectionsNodes.Count; i++)
             {
@@ -148,6 +153,10 @@ namespace LaserSystem
                 {
                     generators.Add(connectionNode);
                 }
+                else if (connectionNode.NodeType == NodeType.Receiver)
+                {
+                    receivers.Add(connectionNode);
+                }
             }
 
             foreach (var generator in generators)
@@ -155,10 +164,11 @@ namespace LaserSystem
                 CalculateDistances(generator);
             }
 
-            // New logic to assign energy types after all distances are calculated, handling ties
+            // Обработка энергии для коннекторов
             foreach (var node in _activeConnectionsNodes)
             {
-                if (node.NodeType != NodeType.Connector) continue;
+                if (node.NodeType == NodeType.Generator) 
+                    continue;
 
                 if (node.Depths.Count == 0)
                 {
@@ -184,7 +194,36 @@ namespace LaserSystem
                 else
                 {
                     node.EnergyType = EnergyType.Mixed;
-                    // Optionally, you can store secondary energies if needed, but for now, we set to Mixed
+                }
+            }
+
+            // Обработка энергии для ресиверов
+            foreach (var receiver in receivers)
+            {
+                if (receiver.Depths.Count == 0)
+                {
+                    receiver.IsActive = false;
+                    continue;
+                }
+
+                int minDepth = receiver.Depths.Values.Min();
+                var closestGenerators = receiver.Depths
+                    .Where(kv => kv.Value == minDepth)
+                    .Select(kv => kv.Key)
+                    .ToList();
+
+                receiver.MinDepth = minDepth;
+
+                var uniqueEnergies = new HashSet<EnergyType>(closestGenerators.Select(g => g.EnergyType));
+
+                // Проверяем, соответствует ли энергия ресивера
+                if (uniqueEnergies.Count == 1 && uniqueEnergies.First() == receiver.EnergyType)
+                {
+                    receiver.IsActive = true;
+                }
+                else
+                {
+                    receiver.IsActive = false;
                 }
             }
         }
@@ -215,9 +254,14 @@ namespace LaserSystem
                     if (!visited.Contains(connectingNode) && !isNodeBlocked)
                     {
                         visited.Add(connectingNode);
-                        queue.Enqueue(connectingNode);
                         distances[connectingNode] = distances[current] + 1;
                         connectingNode.Depths[generator] = distances[connectingNode];
+
+                        // Добавляем в очередь только узлы, которые могут распространять энергию
+                        if (connectingNode.CanPropagateEnergy)
+                        {
+                            queue.Enqueue(connectingNode);
+                        }
                     }
                 }
             }
@@ -245,7 +289,6 @@ namespace LaserSystem
 
                 if (!connection.IsActive && connection.HitPoint.HasValue)
                 {
-                    //если стоит игрок
                     bool startCloser = startNode.MinDepth <= endNode.MinDepth;
                     Vector3 closerPos = startCloser ? start : end;
                     Vector3 otherPos = startCloser ? end : start;
@@ -264,7 +307,6 @@ namespace LaserSystem
                     firstLine.SetPosition(1, firstEnd);
                     _vfxGameObjects.Add(firstLine.gameObject);
 
-                    // отрисовка до от одного генератор до другого
                     if (otherEnergy != EnergyType.None && otherEnergy != closerEnergy)
                     {
                         Vector3 secondStart = connection.HitPoint.Value;
@@ -286,7 +328,6 @@ namespace LaserSystem
 
                     if (isMixedInvolved)
                     {
-                        // Draw full line using the non-mixed energy type
                         EnergyType lineEnergy = startNode.EnergyType == EnergyType.Mixed ? endNode.EnergyType : startNode.EnergyType;
                         var prefab = GetLineRendererByEnergyType(lineEnergy);
                         var direction = end - start;
@@ -300,10 +341,8 @@ namespace LaserSystem
                     }
                     else
                     {
-                        // Original midpoint logic for non-mixed different energies
                         Vector3 midPoint = (start + end) / 2;
 
-                        // от старт до мид
                         var firstDirection = midPoint - start;
                         firstDirection = firstDirection.normalized;
                         var firstPrefab = GetLineRendererByEnergyType(startNode.EnergyType);
@@ -314,7 +353,6 @@ namespace LaserSystem
                         firstLine.SetPosition(1, midPoint);
                         _vfxGameObjects.Add(firstLine.gameObject);
 
-                        // от ент до мид
                         var secondDirection = end - midPoint;
                         secondDirection = secondDirection.normalized;
                         var secondPrefab = GetLineRendererByEnergyType(endNode.EnergyType);
@@ -328,7 +366,6 @@ namespace LaserSystem
                 }
                 else
                 {
-                    // полное реьро
                     var energyType = connection.EnergyType();
                     var energyPrefab = GetLineRendererByEnergyType(energyType);
                     var direction = end - start;
@@ -362,7 +399,7 @@ namespace LaserSystem
             switch (energyType)
             {
                 case EnergyType.None:
-                case EnergyType.Mixed: // Treat Mixed as None for line rendering (or customize if needed)
+                case EnergyType.Mixed:
                     return _simplePathPrefab;
                 case EnergyType.Red:
                     return _redConnectionLine;
