@@ -12,6 +12,9 @@ namespace LaserSystem
         private LineRenderer _redConnectionLine;
         [SerializeField]
         private LineRenderer _blueConnectionLine;
+
+        [SerializeField] 
+        private LayerMask _collisionMask;
         
         private List<ConnectionNode> _allConnectionNodes = new ();
         private List<ConnectionNode> _activeConnectionsNodes = new ();
@@ -74,6 +77,11 @@ namespace LaserSystem
                 if (connectionNode.IsActiveNode)
                 {
                     _activeConnectionsNodes.Add(connectionNode);
+                }
+
+                if (connectionNode.NodeType == NodeType.Connector)
+                {
+                    connectionNode.EnergyType = EnergyType.None;
                 }
             }
         }
@@ -182,7 +190,7 @@ namespace LaserSystem
 
             foreach (var distance in distances)
             {
-                if (distance.Key == generator)
+                if (distance.Key.NodeType == NodeType.Generator)
                 {
                     continue;
                 }
@@ -211,22 +219,22 @@ namespace LaserSystem
                     farthestConnectors.Add(distance.Key);
                 }
             }
-
-            Debug.Log($"Ближайшие коннекторы (расстояние {minDistance}): {closestConnectors.Count} шт.");
-            foreach (var node in closestConnectors)
-            {
-                Debug.Log(node.name);
-            }
-
-            Debug.Log($"Дальние коннекторы (расстояние {maxDistance}): {farthestConnectors.Count} шт.");
-            foreach (var node in farthestConnectors)
-            {
-                Debug.Log(node.name);
-            }
             
             SpreadEnergy(generator, distances);
         }
-        
+
+        private bool IsNodeBlocked(ConnectionNode first, ConnectionNode second)
+        {
+            var start = first.ConnectionTargetTransform.position;
+            var end = second.ConnectionTargetTransform.position;
+            var direction = end - start;
+            var distance = direction.magnitude;
+            direction = direction.normalized;
+            var hasRaycast = Physics.Raycast(start, direction, out RaycastHit hit, distance, _collisionMask);
+            
+            return hasRaycast;
+        }
+
         private void SpreadEnergy(ConnectionNode generator, Dictionary<ConnectionNode, int> distances)
         {
             var sortedNodes = new List<KeyValuePair<ConnectionNode, int>>(distances);
@@ -234,7 +242,12 @@ namespace LaserSystem
 
             foreach (var pair in sortedNodes)
             {
-                if (pair.Key == generator)
+                if (pair.Key.NodeType != NodeType.Connector)
+                {
+                    continue;
+                }
+
+                if (IsPathBlocked(generator, pair.Key))
                 {
                     continue;
                 }
