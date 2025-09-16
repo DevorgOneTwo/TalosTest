@@ -8,8 +8,7 @@ namespace LaserSystem
         private EnergyType _energyType;
         [SerializeField]
         private GameObject _activeEffect;
-
-        public override bool HasEnergy { get; set; }
+        
         public override EnergyType EnergyType { get; set; }
         public override NodeType NodeType => NodeType.Receiver;
 
@@ -22,8 +21,13 @@ namespace LaserSystem
         {
             if (_activeEffect != null)
             {
-                _activeEffect.SetActive(HasEnergy && EnergyType == _energyType);
+                _activeEffect.SetActive(IsActive());
             }
+        }
+
+        public bool IsActive()
+        {
+            return HasEnergy && EnergyType == _energyType;
         }
     }
 }

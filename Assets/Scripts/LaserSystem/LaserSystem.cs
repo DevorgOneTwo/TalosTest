@@ -60,7 +60,7 @@ namespace LaserSystem
             for (var i = 0; i < _receivers.Count; i++)
             {
                 var receiver = _receivers[i];
-                if (!receiver.HasEnergy)
+                if (!receiver.IsActive())
                 {
                     isOpenWall = false;
                     break;
