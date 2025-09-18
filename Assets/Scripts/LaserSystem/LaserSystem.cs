@@ -22,7 +22,10 @@ namespace LaserSystem
 
         [SerializeField] 
         private LayerMask _collisionMask;
-        
+
+        [SerializeField]
+        private float _intersectionTolerance = 0.1f; // Tolerance for detecting line intersections in 3D
+
         private List<ConnectionNode> _allConnectionNodes = new();
         private List<ConnectionNode> _activeConnectionsNodes = new();
 
@@ -75,9 +78,10 @@ namespace LaserSystem
             ClearVfx();
             SelectActiveConnections();
             
-            SetEnergyTypes();
             _connections.Clear();
             _connections = FindAllConnections();
+            SetEnergyTypes();
+            HandleCrossChainIntersections(); // New method to handle intersections
             DrawConnectionsDebug(_connections);
             VisualizeConnectionsEnergy();
         }
@@ -190,8 +194,7 @@ namespace LaserSystem
             
             foreach (var node in _activeConnectionsNodes)
             {
-                if (node.NodeType == NodeType.Generator) 
-                    continue;
+                if (node.NodeType != NodeType.Connector) continue;
 
                 if (node.Depths.Count == 0)
                 {
@@ -293,6 +296,150 @@ namespace LaserSystem
             var distance = direction.magnitude;
             direction = direction.normalized;
             return Physics.Raycast(start, direction, out hit, distance, _collisionMask);
+        }
+        
+        private void HandleCrossChainIntersections()
+        {
+            var chainGroups = new Dictionary<ConnectionNode, List<Connection>>();
+            foreach (var connection in _connections.Where(c => c.IsActive))
+            {
+                var firstGenerator = GetGeneratorForNode(connection.FirstNode);
+                var secondGenerator = GetGeneratorForNode(connection.SecondNode);
+
+                if (connection.FirstNode.ContainsNodeInDepths(firstGenerator))
+                {
+                    continue;
+                }
+
+                var generator = firstGenerator ?? secondGenerator;
+                if (generator != null)
+                {
+                    if (!chainGroups.ContainsKey(generator))
+                    {
+                        chainGroups[generator] = new List<Connection>();
+                    }
+                    chainGroups[generator].Add(connection);
+                }
+            }
+            
+            var intersections = new List<(Connection conn1, Connection conn2, Vector3? point)>();
+            var chains = chainGroups.Keys.ToList();
+            for (int i = 0; i < chains.Count; i++)
+            {
+                for (int j = i + 1; j < chains.Count; j++)
+                {
+                    var firstChain = chainGroups[chains[i]];
+                    var secondChain = chainGroups[chains[j]];
+                    foreach (var firstChainConnection in firstChain)
+                    {
+                        foreach (var secondChainConnection in secondChain)
+                        {
+                            var point = GetLineIntersection(firstChainConnection, secondChainConnection);
+                            if (point.HasValue)
+                            {
+                                intersections.Add((firstChainConnection, secondChainConnection, point));
+                            }
+                        }
+                    }
+                }
+            }
+            
+            foreach (var (firstConnection, secondConnection, intersectionPoint) in intersections)
+            {
+                if (!intersectionPoint.HasValue)
+                {
+                    continue;
+                }
+                
+                AdjustEnergyAfterIntersection(firstConnection, intersectionPoint.Value);
+                AdjustEnergyAfterIntersection(secondConnection, intersectionPoint.Value);
+            }
+        }
+        
+        private ConnectionNode GetGeneratorForNode(ConnectionNode node)
+        {
+            if (node.Depths.Count > 0)
+            {
+                return node.Depths.OrderBy(d => d.Value).First().Key; // Closest generator
+            }
+            return null;
+        }
+        
+        private Vector3? GetLineIntersection(Connection conn1, Connection conn2)
+        {
+            Vector3 p1 = conn1.FirstNode.ConnectionTargetTransform.position;
+            Vector3 p2 = conn1.SecondNode.ConnectionTargetTransform.position;
+            Vector3 p3 = conn2.FirstNode.ConnectionTargetTransform.position;
+            Vector3 p4 = conn2.SecondNode.ConnectionTargetTransform.position;
+
+            Vector3 d1 = p2 - p1;
+            Vector3 d2 = p4 - p3;
+            Vector3 p13 = p1 - p3;
+
+            float d1343 = Vector3.Dot(p13, d2);
+            float d4321 = Vector3.Dot(d2, d1);
+            float d1321 = Vector3.Dot(p13, d1);
+            float d4343 = Vector3.Dot(d2, d2);
+            float d2121 = Vector3.Dot(d1, d1);
+
+            float denom = d2121 * d4343 - d4321 * d4321;
+            if (Mathf.Abs(denom) < _intersectionTolerance)
+            {
+                return null; 
+            }
+
+
+            float t = (d1343 * d4321 - d1321 * d4343) / denom;
+            float u = (d1343 + d4321 * t) / d4343;
+
+            if (t >= 0 && t <= 1 && u >= 0 && u <= 1)
+            {
+                return p1 + t * d1;
+            }
+
+            return null;
+        }
+        
+        private void AdjustEnergyAfterIntersection(Connection connection, Vector3 intersectionPoint)
+        {
+            connection.HitPoint = intersectionPoint;
+            connection.IsActive = false;
+            
+            var firstNode = connection.FirstNode;
+            var secondNOde = connection.SecondNode;
+            
+            var nodeFirstCloser = firstNode.MinDepth <= secondNOde.MinDepth;
+            var closerNode = nodeFirstCloser ? firstNode : secondNOde;
+            var fartherNode = nodeFirstCloser ? secondNOde : firstNode;
+            
+            RaycastHit hit;
+            if (IsNodeBlocked(closerNode, fartherNode, out hit) && hit.point != intersectionPoint)
+            {
+                return;
+            }
+
+            if (fartherNode.NodeType != NodeType.Generator)
+            {
+                fartherNode.EnergyType = EnergyType.None;
+            }
+           
+            PropagateNoEnergy(fartherNode, closerNode);
+        }
+
+        private void PropagateNoEnergy(ConnectionNode current, ConnectionNode previous)
+        {
+            if (current.NodeType != NodeType.Generator)
+            {
+                current.EnergyType = EnergyType.None;
+            }
+
+            foreach (var neighbor in current.ConnectingNodes)
+            {
+                if (neighbor != previous && neighbor.CanPropagateEnergy)
+                {
+                    PropagateNoEnergy(neighbor, current);
+                }
+            }
         }
 
         private void VisualizeConnectionsEnergy()

@@ -84,6 +84,17 @@ namespace LaserSystem
             _connectingNodes.Clear();
         }
 
+        public bool ContainsNodeInDepths(ConnectionNode connectionNode)
+        {
+            foreach (var keyValuePair in Depths)
+            {
+                if (keyValuePair.Key == connectionNode)
+                    return true;
+            }
+            
+            return false;
+        }
+
         public void AddConnection(ConnectionNode connectionNode)
         {
             if (_connectingNodes.Contains(connectionNode))
